@@ -1,0 +1,2925 @@
+import { Construct } from 'constructs';
+import { App, TerraformStack, TerraformOutput } from 'cdktf';
+import { IamUser, IamRole, IamServiceLinkedRole, IamPolicy, IamAccessKey, Vpc, Subnet, InternetGateway, VpcDhcpOptions, VpcDhcpOptionsAssociation, NetworkAcl, NetworkAclRule, RouteTable, Route, VpcEndpoint, Route53Zone, Route53Record, Instance, SecurityGroup, EbsVolume, VolumeAttachment, NetworkInterface, NetworkInterfaceAttachment, KeyPair, LambdaFunction, DbInstance, DbSubnetGroup, OpsworksUserProfile, CloudwatchLogGroup, CloudwatchLogStream, NeptuneSubnetGroup, DocdbSubnetGroup, IotThing, IotThingPrincipalAttachment, IotPolicy, IotPolicyAttachment, IotCertificate, SecretsmanagerSecret, SecretsmanagerSecretVersion, AwsProvider } from './.gen/providers/aws';
+
+class MyStack extends TerraformStack {
+    constructor(scope: Construct, name: string) {
+        super(scope, name);
+
+        new AwsProvider(this, 'aws', {
+          region: 'us-east-1'
+        });
+
+        const iamuser = new IamUser(this, 'IAMUser', {
+            path: "/",
+            name: "former2",
+            tags: []
+        });
+
+        const iamuser2 = new IamUser(this, 'IAMUser2', {
+            path: "/",
+            name: "srvLavanderiaCIG_IoT",
+            tags: [],
+            permissionsBoundary: "arn:aws:iam::aws:policy/AWSIoTDataAccess"
+        });
+
+        const iamrole = new IamRole(this, 'IAMRole', {
+            path: "/service-role/",
+            name: "lavanderiaCIG-logIotCore",
+            assumeRolePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"iot.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+            maxSessionDuration: 3600,
+            tags: []
+        });
+
+        const iamrole2 = new IamRole(this, 'IAMRole2', {
+            path: "/",
+            name: "rds-monitoring-role",
+            assumeRolePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"monitoring.rds.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+            maxSessionDuration: 3600,
+            tags: []
+        });
+
+        const iamrole3 = new IamRole(this, 'IAMRole3', {
+            path: "/service-role/",
+            name: "rds-proxy-role-1670277297800",
+            assumeRolePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"rds.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+            maxSessionDuration: 3600,
+            tags: []
+        });
+
+        const iamrole4 = new IamRole(this, 'IAMRole4', {
+            path: "/service-role/",
+            name: "subCasillero-role-q8k4s2pq",
+            assumeRolePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+            maxSessionDuration: 3600,
+            tags: []
+        });
+
+        const iamrole5 = new IamRole(this, 'IAMRole5', {
+            path: "/service-role/",
+            name: "rds-proxy-role-1670337461636",
+            assumeRolePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"rds.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+            maxSessionDuration: 3600,
+            tags: []
+        });
+
+        const iamservicelinkedrole = new IamServiceLinkedRole(this, 'IAMServiceLinkedRole', {
+            awsServiceName: "rds.amazonaws.com",
+            description: "Allows Amazon RDS to manage AWS resources on your behalf"
+        });
+
+        const iammanagedpolicy = new IamPolicy(this, 'IAMManagedPolicy', {
+            name: "rds-proxy-policy-1670277297800",
+            path: "/service-role/",
+            policy: `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GetSecretValue",
+            "Action": [
+                "secretsmanager:GetSecretValue"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-KK2FN4HIEUUMOP25MD2RN7D2X4/admCIGUsr/1670277296686-SdKh3d"
+            ]
+        },
+        {
+            "Sid": "DecryptSecretValue",
+            "Action": [
+                "kms:Decrypt"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:kms:us-east-1:020459206978:key/c0e1c90b-2ba9-40c8-8997-4763e42d5f4c"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+`
+        });
+
+        const iammanagedpolicy2 = new IamPolicy(this, 'IAMManagedPolicy2', {
+            name: "srvLavanderiaIot_policy",
+            path: "/",
+            policy: `
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": "*"
+    }
+  ]
+}
+`
+        });
+
+        const iammanagedpolicy3 = new IamPolicy(this, 'IAMManagedPolicy3', {
+            name: "AWSLambdaBasicExecutionRole-7ddf4d9d-e55f-446d-805b-2d016dc286af",
+            path: "/service-role/",
+            policy: `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "logs:CreateLogGroup",
+            "Resource": "arn:aws:logs:us-east-1:020459206978:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:logs:us-east-1:020459206978:log-group:/aws/lambda/subCasillero:*"
+            ]
+        }
+    ]
+}
+`
+        });
+
+        const iammanagedpolicy4 = new IamPolicy(this, 'IAMManagedPolicy4', {
+            name: "aws-iot-role-logging_1672770798077",
+            path: "/service-role/",
+            policy: `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:PutMetricFilter",
+                "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+                "arn:aws:logs:*:020459206978:log-group:*:log-stream:*"
+            ]
+        }
+    ]
+}
+`
+        });
+
+        const iammanagedpolicy5 = new IamPolicy(this, 'IAMManagedPolicy5', {
+            name: "rds-proxy-policy-1670337461636",
+            path: "/service-role/",
+            policy: `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GetSecretValue",
+            "Action": [
+                "secretsmanager:GetSecretValue"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-3W654BJK7VKFQWKEJXWJBA3HEE/admCIGUsr/1670337460481-PDvldK"
+            ]
+        },
+        {
+            "Sid": "DecryptSecretValue",
+            "Action": [
+                "kms:Decrypt"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:kms:us-east-1:020459206978:key/c0e1c90b-2ba9-40c8-8997-4763e42d5f4c"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+`
+        });
+
+        const iamaccesskey = new IamAccessKey(this, 'IAMAccessKey', {
+            status: "Active",
+            user: "former2"
+        });
+
+        const iamaccesskey2 = new IamAccessKey(this, 'IAMAccessKey2', {
+            status: "Active",
+            user: "srvLavanderiaCIG_IoT"
+        });
+
+        const ec2vpc = new Vpc(this, 'EC2VPC', {
+            cidrBlock: ec2vpc2.cidr_block,
+            enableDnsSupport: true,
+            enableDnsHostnames: true,
+            instanceTenancy: "default",
+            tags: []
+        });
+
+        const ec2vpc2 = new Vpc(this, 'EC2VPC2', {
+            cidrBlock: ec2vpc4.cidr_block,
+            enableDnsSupport: true,
+            enableDnsHostnames: true,
+            instanceTenancy: "default",
+            tags: []
+        });
+
+        const ec2vpc3 = new Vpc(this, 'EC2VPC3', {
+            cidrBlock: "172.31.0.0/16",
+            enableDnsSupport: true,
+            enableDnsHostnames: true,
+            instanceTenancy: "default",
+            tags: []
+        });
+
+        const ec2vpc4 = new Vpc(this, 'EC2VPC4', {
+            cidrBlock: "172.30.0.0/16",
+            enableDnsSupport: true,
+            enableDnsHostnames: true,
+            instanceTenancy: "default",
+            tags: []
+        });
+
+        const ec2subnet = new Subnet(this, 'EC2Subnet', {
+            availabilityZone: "us-east-1a",
+            cidrBlock: "172.30.0.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet2 = new Subnet(this, 'EC2Subnet2', {
+            availabilityZone: "us-east-1d",
+            cidrBlock: "172.30.3.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet3 = new Subnet(this, 'EC2Subnet3', {
+            availabilityZone: "us-east-1e",
+            cidrBlock: "172.31.48.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet4 = new Subnet(this, 'EC2Subnet4', {
+            availabilityZone: "us-east-1b",
+            cidrBlock: "172.30.1.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet5 = new Subnet(this, 'EC2Subnet5', {
+            availabilityZone: "us-east-1b",
+            cidrBlock: "172.30.1.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet6 = new Subnet(this, 'EC2Subnet6', {
+            availabilityZone: "us-east-1e",
+            cidrBlock: "172.30.4.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet7 = new Subnet(this, 'EC2Subnet7', {
+            availabilityZone: "us-east-1d",
+            cidrBlock: "172.30.3.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet8 = new Subnet(this, 'EC2Subnet8', {
+            availabilityZone: "us-east-1f",
+            cidrBlock: "172.30.5.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet9 = new Subnet(this, 'EC2Subnet9', {
+            availabilityZone: "us-east-1f",
+            cidrBlock: "172.31.64.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet10 = new Subnet(this, 'EC2Subnet10', {
+            availabilityZone: "us-east-1e",
+            cidrBlock: "172.30.4.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet11 = new Subnet(this, 'EC2Subnet11', {
+            availabilityZone: "us-east-1c",
+            cidrBlock: "172.30.2.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet12 = new Subnet(this, 'EC2Subnet12', {
+            availabilityZone: "us-east-1d",
+            cidrBlock: "172.31.80.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet13 = new Subnet(this, 'EC2Subnet13', {
+            availabilityZone: "us-east-1c",
+            cidrBlock: "172.30.2.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet14 = new Subnet(this, 'EC2Subnet14', {
+            availabilityZone: "us-east-1d",
+            cidrBlock: "172.30.3.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet15 = new Subnet(this, 'EC2Subnet15', {
+            availabilityZone: "us-east-1f",
+            cidrBlock: "172.30.5.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet16 = new Subnet(this, 'EC2Subnet16', {
+            availabilityZone: "us-east-1e",
+            cidrBlock: "172.30.4.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet17 = new Subnet(this, 'EC2Subnet17', {
+            availabilityZone: "us-east-1c",
+            cidrBlock: "172.31.0.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet18 = new Subnet(this, 'EC2Subnet18', {
+            availabilityZone: "us-east-1b",
+            cidrBlock: "172.30.1.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet19 = new Subnet(this, 'EC2Subnet19', {
+            availabilityZone: "us-east-1f",
+            cidrBlock: "172.30.5.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet20 = new Subnet(this, 'EC2Subnet20', {
+            availabilityZone: "us-east-1c",
+            cidrBlock: "172.30.2.0/24",
+            vpcId: ec2vpc2.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet21 = new Subnet(this, 'EC2Subnet21', {
+            availabilityZone: "us-east-1a",
+            cidrBlock: "172.30.0.0/24",
+            vpcId: ec2vpc4.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet22 = new Subnet(this, 'EC2Subnet22', {
+            availabilityZone: "us-east-1a",
+            cidrBlock: "172.30.0.0/24",
+            vpcId: ec2vpc.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet23 = new Subnet(this, 'EC2Subnet23', {
+            availabilityZone: "us-east-1a",
+            cidrBlock: "172.31.16.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2subnet24 = new Subnet(this, 'EC2Subnet24', {
+            availabilityZone: "us-east-1b",
+            cidrBlock: "172.31.32.0/20",
+            vpcId: ec2vpc3.id,
+            mapPublicIpOnLaunch: true
+        });
+
+        const ec2internetgateway = new InternetGateway(this, 'EC2InternetGateway', {
+            tags: [],
+            vpcId: ec2vpc2.id
+        });
+
+        const ec2internetgateway2 = new InternetGateway(this, 'EC2InternetGateway2', {
+            tags: [],
+            vpcId: ec2vpc3.id
+        });
+
+        const ec2internetgateway3 = new InternetGateway(this, 'EC2InternetGateway3', {
+            tags: [],
+            vpcId: ec2vpc.id
+        });
+
+        const ec2internetgateway4 = new InternetGateway(this, 'EC2InternetGateway4', {
+            tags: [],
+            vpcId: ec2vpc4.id
+        });
+
+        const ec2dhcpoptions = new VpcDhcpOptions(this, 'EC2DHCPOptions', {
+            domainName: "ec2.internal",
+            tags: []
+        });
+
+        const ec2vpcdhcpoptionsassociation = new VpcDhcpOptionsAssociation(this, 'EC2VPCDHCPOptionsAssociation', {
+            dhcpOptionsId: "dopt-0c8e7d191faa98d50",
+            vpcId: ec2vpc3.id
+        });
+
+        const ec2vpcdhcpoptionsassociation2 = new VpcDhcpOptionsAssociation(this, 'EC2VPCDHCPOptionsAssociation2', {
+            dhcpOptionsId: "dopt-0c8e7d191faa98d50",
+            vpcId: ec2vpc2.id
+        });
+
+        const ec2vpcdhcpoptionsassociation3 = new VpcDhcpOptionsAssociation(this, 'EC2VPCDHCPOptionsAssociation3', {
+            dhcpOptionsId: "dopt-0c8e7d191faa98d50",
+            vpcId: ec2vpc4.id
+        });
+
+        const ec2vpcdhcpoptionsassociation4 = new VpcDhcpOptionsAssociation(this, 'EC2VPCDHCPOptionsAssociation4', {
+            dhcpOptionsId: "dopt-0c8e7d191faa98d50",
+            vpcId: ec2vpc.id
+        });
+
+        const ec2networkacl = new NetworkAcl(this, 'EC2NetworkAcl', {
+            vpcId: ec2vpc2.id,
+            tags: []
+        });
+
+        const ec2networkacl2 = new NetworkAcl(this, 'EC2NetworkAcl2', {
+            vpcId: ec2vpc.id,
+            tags: []
+        });
+
+        const ec2networkacl3 = new NetworkAcl(this, 'EC2NetworkAcl3', {
+            vpcId: ec2vpc3.id,
+            tags: []
+        });
+
+        const ec2networkacl4 = new NetworkAcl(this, 'EC2NetworkAcl4', {
+            vpcId: ec2vpc4.id,
+            tags: []
+        });
+
+        const ec2networkaclentry = new NetworkAclRule(this, 'EC2NetworkAclEntry', {
+            cidrBlock: "0.0.0.0/0",
+            egress: true,
+            networkAclId: "acl-0c3ac7dc22203a759",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry2 = new NetworkAclRule(this, 'EC2NetworkAclEntry2', {
+            cidrBlock: "0.0.0.0/0",
+            egress: false,
+            networkAclId: "acl-0c3ac7dc22203a759",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry3 = new NetworkAclRule(this, 'EC2NetworkAclEntry3', {
+            cidrBlock: "0.0.0.0/0",
+            egress: true,
+            networkAclId: "acl-0e229b7aad54b87eb",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry4 = new NetworkAclRule(this, 'EC2NetworkAclEntry4', {
+            cidrBlock: "0.0.0.0/0",
+            egress: false,
+            networkAclId: "acl-0e229b7aad54b87eb",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry5 = new NetworkAclRule(this, 'EC2NetworkAclEntry5', {
+            cidrBlock: "0.0.0.0/0",
+            egress: true,
+            networkAclId: "acl-026cdfb706a8932eb",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry6 = new NetworkAclRule(this, 'EC2NetworkAclEntry6', {
+            cidrBlock: "0.0.0.0/0",
+            egress: false,
+            networkAclId: "acl-026cdfb706a8932eb",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry7 = new NetworkAclRule(this, 'EC2NetworkAclEntry7', {
+            cidrBlock: "0.0.0.0/0",
+            egress: true,
+            networkAclId: "acl-03ff36f6de8b348fc",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2networkaclentry8 = new NetworkAclRule(this, 'EC2NetworkAclEntry8', {
+            cidrBlock: "0.0.0.0/0",
+            egress: false,
+            networkAclId: "acl-03ff36f6de8b348fc",
+            protocol: -1,
+            ruleAction: "allow",
+            ruleNumber: 100
+        });
+
+        const ec2routetable = new RouteTable(this, 'EC2RouteTable', {
+            vpcId: ec2vpc4.id,
+            tags: []
+        });
+
+        const ec2routetable2 = new RouteTable(this, 'EC2RouteTable2', {
+            vpcId: ec2vpc3.id,
+            tags: []
+        });
+
+        const ec2routetable3 = new RouteTable(this, 'EC2RouteTable3', {
+            vpcId: ec2vpc.id,
+            tags: []
+        });
+
+        const ec2routetable4 = new RouteTable(this, 'EC2RouteTable4', {
+            vpcId: ec2vpc2.id,
+            tags: []
+        });
+
+        const ec2route = new Route(this, 'EC2Route', {
+            destinationCidrBlock: "0.0.0.0/0",
+            gatewayId: "igw-0e3d0b2e668d25f2c",
+            routeTableId: "rtb-0fa7350735c4ada5b"
+        });
+
+        const ec2route2 = new Route(this, 'EC2Route2', {
+            destinationCidrBlock: "0.0.0.0/0",
+            gatewayId: "igw-089a806a55e1797fe",
+            routeTableId: "rtb-01350f8a207942a66"
+        });
+
+        const ec2route3 = new Route(this, 'EC2Route3', {
+            destinationCidrBlock: "0.0.0.0/0",
+            gatewayId: "igw-0d8e4c8cc78353c43",
+            routeTableId: "rtb-0e7d56bf590bce713"
+        });
+
+        const ec2route4 = new Route(this, 'EC2Route4', {
+            destinationCidrBlock: "0.0.0.0/0",
+            gatewayId: "igw-03c70fe4c9684babe",
+            routeTableId: "rtb-046258b7346a01adc"
+        });
+
+        const ec2vpcendpoint = new VpcEndpoint(this, 'EC2VPCEndpoint', {
+            vpcEndpointType: "Interface",
+            vpcId: ec2vpc3.id,
+            serviceName: "com.amazonaws.vpce.us-east-1.vpce-svc-0663885e6443f3e1c",
+            policy: `
+{
+  "Statement": [
+    {
+      "Action": "*", 
+      "Effect": "Allow", 
+      "Principal": "*", 
+      "Resource": "*"
+    }
+  ]
+}
+`,
+            subnetIds: [
+                "subnet-02327c067b67ab5a7",
+                "subnet-040ad506553e581b7"
+            ],
+            privateDnsEnabled: false,
+            securityGroupIds: [
+                ec2securitygroup2.id
+            ]
+        });
+
+        const ec2vpcendpoint2 = new VpcEndpoint(this, 'EC2VPCEndpoint2', {
+            vpcEndpointType: "Interface",
+            vpcId: ec2vpc2.id,
+            serviceName: "com.amazonaws.vpce.us-east-1.vpce-svc-0663885e6443f3e1c",
+            policy: `
+{
+  "Statement": [
+    {
+      "Action": "*", 
+      "Effect": "Allow", 
+      "Principal": "*", 
+      "Resource": "*"
+    }
+  ]
+}
+`,
+            subnetIds: [
+                "subnet-0566860b207b8c2ea",
+                "subnet-01c8857ffbc6625ff"
+            ],
+            privateDnsEnabled: false,
+            securityGroupIds: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const route53hostedzone = new Route53Zone(this, 'Route53HostedZone', {
+            name: "lavanderiascig.com."
+        });
+
+        const route53recordset = new Route53Record(this, 'Route53RecordSet', {
+            name: "lavanderiascig.com.",
+            type: "NS",
+            ttl: 172800,
+            records: [
+                "ns-2027.awsdns-61.co.uk.",
+                "ns-1069.awsdns-05.org.",
+                "ns-719.awsdns-25.net.",
+                "ns-284.awsdns-35.com."
+            ],
+            zoneId: "Z04081522VTM1B3BYYE57"
+        });
+
+        const route53recordset2 = new Route53Record(this, 'Route53RecordSet2', {
+            name: "lavanderiascig.com.",
+            type: "SOA",
+            ttl: 900,
+            records: [
+                "ns-2027.awsdns-61.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400"
+            ],
+            zoneId: "Z04081522VTM1B3BYYE57"
+        });
+
+        const ec2instance = new Instance(this, 'EC2Instance', {
+            ami: "ami-064d05b4fe8515623",
+            instanceType: "t2.micro",
+            keyName: "lavanderiaCIG",
+            availabilityZone: "us-east-1d",
+            tenancy: "default",
+            subnetId: "subnet-0230b187a9529b599",
+            ebsOptimized: false,
+            vpcSecurityGroupIds: [
+                ec2securitygroup5.id,
+                ec2securitygroup4.id
+            ],
+            sourceDestCheck: true,
+            rootBlockDevice: [{
+                volumeSize: 30,
+                volumeType: "gp2",
+                deleteOnTermination: true
+            }],
+            tags: []
+        });
+
+        const ec2securitygroup = new SecurityGroup(this, 'EC2SecurityGroup', {
+            description: "default VPC security group",
+            name: "default",
+            tags: [],
+            vpcId: ec2vpc.id,
+            ingress: [
+                [{
+                    securityGroups: [
+                        "sg-0daaf0d67b75f4cf7"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup2 = new SecurityGroup(this, 'EC2SecurityGroup2', {
+            description: "default VPC security group",
+            name: "default",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    securityGroups: [
+                        "sg-058dd5a7596e56c83"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup3 = new SecurityGroup(this, 'EC2SecurityGroup3', {
+            description: "ANY",
+            name: "ANY",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup4 = new SecurityGroup(this, 'EC2SecurityGroup4', {
+            description: "Security group attached to instances to allow them to securely connect to lavanderiacig-db. Modification could lead to connection loss.",
+            name: "ec2-rds-1",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            egress: [
+                [{
+                    securityGroups: [
+                        ec2securitygroup6.id
+                    ],
+                    description: "Rule to allow connections to lavanderiacig-db from any instances this security group is attached to",
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ]
+        });
+
+        const ec2securitygroup5 = new SecurityGroup(this, 'EC2SecurityGroup5', {
+            description: "launch-wizard-1 created 2022-12-06T00:13:48.091Z",
+            name: "launch-wizard-1",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "152.168.2.76/32"
+                    ],
+                    fromPort: 3389,
+                    protocol: "tcp",
+                    toPort: 3389
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup6 = new SecurityGroup(this, 'EC2SecurityGroup6', {
+            description: "Security group attached to lavanderiacig-db to allow EC2 instances with specific security groups attached to connect to the database. Modification could lead to connection loss.",
+            name: "rds-ec2-1",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    securityGroups: [
+                        "sg-0c0c20ea834a2f095"
+                    ],
+                    description: "Rule to allow connections from EC2 instances with sg-0c0c20ea834a2f095 attached",
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ]
+        });
+
+        const ec2securitygroup7 = new SecurityGroup(this, 'EC2SecurityGroup7', {
+            description: "MSSQL",
+            name: "MSSQL",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "186.28.191.229/32"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup8 = new SecurityGroup(this, 'EC2SecurityGroup8', {
+            description: "Created by RDS management console",
+            name: "dbsecurity",
+            tags: [],
+            vpcId: ec2vpc4.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "152.168.2.76/32"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup9 = new SecurityGroup(this, 'EC2SecurityGroup9', {
+            description: "Created by RDS management console",
+            name: "dbsecurity",
+            tags: [],
+            vpcId: ec2vpc2.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup10 = new SecurityGroup(this, 'EC2SecurityGroup10', {
+            description: "MSQLL",
+            name: "MSQLL",
+            tags: [],
+            vpcId: ec2vpc3.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "186.28.191.229/32"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ]
+        });
+
+        const ec2securitygroup11 = new SecurityGroup(this, 'EC2SecurityGroup11', {
+            description: "Created by RDS management console",
+            name: "dbsecurity",
+            tags: [],
+            vpcId: ec2vpc.id,
+            ingress: [
+                [{
+                    cidrBlocks: [
+                        "152.168.2.76/32"
+                    ],
+                    fromPort: 1433,
+                    protocol: "tcp",
+                    toPort: 1433
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup12 = new SecurityGroup(this, 'EC2SecurityGroup12', {
+            description: "default VPC security group",
+            name: "default",
+            tags: [],
+            vpcId: ec2vpc2.id,
+            ingress: [
+                [{
+                    securityGroups: [
+                        "sg-0446133d42dcb61ad"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2securitygroup13 = new SecurityGroup(this, 'EC2SecurityGroup13', {
+            description: "default VPC security group",
+            name: "default",
+            tags: [],
+            vpcId: ec2vpc4.id,
+            ingress: [
+                [{
+                    securityGroups: [
+                        "sg-07aa36b1382a7c595"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ],
+            egress: [
+                [{
+                    cidrBlocks: [
+                        "0.0.0.0/0"
+                    ],
+                    fromPort: 0,
+                    protocol: "-1",
+                    toPort: 0
+                }]
+            ]
+        });
+
+        const ec2volume = new EbsVolume(this, 'EC2Volume', {
+            availabilityZone: "us-east-1d",
+            encrypted: false,
+            size: 30,
+            type: "gp2",
+            snapshotId: "snap-019dc1b0cda9c4f77",
+            tags: []
+        });
+
+        const ec2volumeattachment = new VolumeAttachment(this, 'EC2VolumeAttachment', {
+            volumeId: "vol-0a3369d36f4c5b6dd",
+            instanceId: "i-04982650fb8250369",
+            deviceName: "/dev/sda1"
+        });
+
+        const ec2networkinterface = new NetworkInterface(this, 'EC2NetworkInterface', {
+            description: "VPC Endpoint Interface vpce-0f5dbcedb731906a6",
+            privateIps: [
+                "172.31.6.56"
+            ],
+            subnetId: "subnet-02327c067b67ab5a7",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup2.id
+            ]
+        });
+
+        const ec2networkinterface2 = new NetworkInterface(this, 'EC2NetworkInterface2', {
+            description: "VPC Endpoint Interface vpce-0f5dbcedb731906a6",
+            privateIps: [
+                "172.31.64.145"
+            ],
+            subnetId: "subnet-040ad506553e581b7",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup2.id
+            ]
+        });
+
+        const ec2networkinterface3 = new NetworkInterface(this, 'EC2NetworkInterface3', {
+            description: "Network interface for DBProxy proxy-1670337462829-sqlserver",
+            privateIps: [
+                "172.30.5.46"
+            ],
+            subnetId: "subnet-026044c2cddc7cf05",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const ec2networkinterface4 = new NetworkInterface(this, 'EC2NetworkInterface4', {
+            description: "VPC Endpoint Interface vpce-03463dc1c7e019593",
+            privateIps: [
+                "172.30.1.14"
+            ],
+            subnetId: "subnet-01c8857ffbc6625ff",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const ec2networkinterface5 = new NetworkInterface(this, 'EC2NetworkInterface5', {
+            description: "Network interface for DBProxy proxy-1670337462829-sqlserver",
+            privateIps: [
+                "172.30.0.172"
+            ],
+            subnetId: "subnet-05e17287aeb3d82d4",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const ec2networkinterface6 = new NetworkInterface(this, 'EC2NetworkInterface6', {
+            description: "RDSNetworkInterface",
+            privateIps: [
+                "172.30.0.220"
+            ],
+            subnetId: "subnet-05e17287aeb3d82d4",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const ec2networkinterface7 = new NetworkInterface(this, 'EC2NetworkInterface7', {
+            description: "RDSNetworkInterface",
+            privateIps: [
+                "172.31.21.41",
+                "172.31.26.104"
+            ],
+            subnetId: "subnet-03eae18a1ee8f376a",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup2.id,
+                ec2securitygroup6.id
+            ]
+        });
+
+        const ec2networkinterface8 = new NetworkInterface(this, 'EC2NetworkInterface8', {
+            description: "",
+            privateIps: [
+                "172.31.85.71"
+            ],
+            subnetId: "subnet-0230b187a9529b599",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup5.id,
+                ec2securitygroup4.id
+            ]
+        });
+
+        const ec2networkinterface9 = new NetworkInterface(this, 'EC2NetworkInterface9', {
+            description: "VPC Endpoint Interface vpce-03463dc1c7e019593",
+            privateIps: [
+                "172.30.3.191"
+            ],
+            subnetId: "subnet-0566860b207b8c2ea",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup9.id
+            ]
+        });
+
+        const ec2networkinterface10 = new NetworkInterface(this, 'EC2NetworkInterface10', {
+            description: "RDSNetworkInterface",
+            privateIps: [
+                "172.31.86.25",
+                "172.31.85.46"
+            ],
+            subnetId: "subnet-0230b187a9529b599",
+            sourceDestCheck: true,
+            securityGroups: [
+                ec2securitygroup2.id,
+                ec2securitygroup6.id
+            ]
+        });
+
+        const ec2networkinterfaceattachment = new NetworkInterfaceAttachment(this, 'EC2NetworkInterfaceAttachment', {
+            networkInterfaceId: "eni-02af45b3e64bb988e",
+            deviceIndex: 0,
+            instanceId: "i-04982650fb8250369"
+        });
+
+        const ec2keypair = new KeyPair(this, 'EC2KeyPair', {
+            publicKey: "REPLACEME",
+            keyName: "lavanderiaCIG"
+        });
+
+        const lambdafunction = new LambdaFunction(this, 'LambdaFunction', {
+            description: "",
+            functionName: "subCasillero",
+            handler: "index.handler",
+            architectures: [
+                "x86_64"
+            ],
+            s3Bucket: "prod-04-2014-tasks",
+            s3Key: "/snapshots/020459206978/subCasillero-4f1e8faa-1605-4b26-b606-664877f2a73d",
+            s3ObjectVersion: "gSB4G4F0agYv2d1677GnOnPsfJ_IiPUL",
+            memorySize: 128,
+            role: iamrole4.arn,
+            runtime: "nodejs18.x",
+            timeout: 3,
+            tracingConfig: [{
+                mode: "PassThrough"
+            }]
+        });
+
+        const rdsdbinstance = new DbInstance(this, 'RDSDBInstance', {
+            identifier: "lavanderiacig-db",
+            allocatedStorage: 20,
+            instanceClass: "db.m6i.xlarge",
+            engine: "sqlserver-se",
+            username: "admCIGUsr",
+            password: "REPLACEME",
+            backupWindow: "10:04-10:34",
+            backupRetentionPeriod: 7,
+            availabilityZone: "us-east-1d",
+            maintenanceWindow: "wed:04:14-wed:04:44",
+            multiAz: true,
+            engineVersion: "15.00.4236.7.v1",
+            autoMinorVersionUpgrade: false,
+            licenseModel: "license-included",
+            iops: 1000,
+            characterSetName: "SQL_Latin1_General_CP1_CI_AS",
+            publiclyAccessible: true,
+            storageType: "io1",
+            port: 1433,
+            storageEncrypted: true,
+            kmsKeyId: "arn:aws:kms:us-east-1:020459206978:key/d3254fce-31b6-4c38-a612-bff59610e16a",
+            copyTagsToSnapshot: true,
+            monitoringInterval: 60,
+            timezone: "Argentina Standard Time",
+            iamDatabaseAuthenticationEnabled: false,
+            deletionProtection: true,
+            dbSubnetGroupName: "default-vpc-043aa73c0d4434526",
+            vpcSecurityGroupIds: [
+                ec2securitygroup6.id,
+                ec2securitygroup2.id
+            ],
+            maxAllocatedStorage: 1000
+        });
+
+        const rdsdbinstance2 = new DbInstance(this, 'RDSDBInstance2', {
+            identifier: "sqlserver",
+            allocatedStorage: 20,
+            instanceClass: "db.t3.xlarge",
+            engine: "sqlserver-web",
+            username: "admCIGUsr",
+            password: "REPLACEME",
+            backupWindow: "06:09-06:39",
+            backupRetentionPeriod: 7,
+            availabilityZone: "us-east-1a",
+            maintenanceWindow: "fri:09:42-fri:10:12",
+            multiAz: false,
+            engineVersion: "15.00.4236.7.v1",
+            autoMinorVersionUpgrade: false,
+            licenseModel: "license-included",
+            iops: 1000,
+            characterSetName: "SQL_Latin1_General_CP1_CI_AS",
+            publiclyAccessible: true,
+            storageType: "io1",
+            port: 1433,
+            storageEncrypted: true,
+            kmsKeyId: "arn:aws:kms:us-east-1:020459206978:key/d3254fce-31b6-4c38-a612-bff59610e16a",
+            copyTagsToSnapshot: true,
+            monitoringInterval: 60,
+            iamDatabaseAuthenticationEnabled: false,
+            deletionProtection: false,
+            dbSubnetGroupName: "default-vpc-02222fdb4b061f9c5",
+            vpcSecurityGroupIds: [
+                ec2securitygroup9.id
+            ],
+            maxAllocatedStorage: 1000
+        });
+
+        const rdsdbsubnetgroup = new DbSubnetGroup(this, 'RDSDBSubnetGroup', {
+            description: "Created from the RDS Management Console",
+            name: "default-vpc-02222fdb4b061f9c5",
+            subnetIds: [
+                "subnet-026044c2cddc7cf05",
+                "subnet-01622b3f96199f89f",
+                "subnet-0ccfc4d1a7fcff50f",
+                "subnet-05e17287aeb3d82d4",
+                "subnet-01c8857ffbc6625ff",
+                "subnet-0566860b207b8c2ea"
+            ]
+        });
+
+        const rdsdbsubnetgroup2 = new DbSubnetGroup(this, 'RDSDBSubnetGroup2', {
+            description: "Created from the RDS Management Console",
+            name: "default-vpc-043aa73c0d4434526",
+            subnetIds: [
+                "subnet-0230b187a9529b599",
+                "subnet-084beaee0f68992b5",
+                "subnet-03eae18a1ee8f376a",
+                "subnet-040ad506553e581b7",
+                "subnet-0b06432bb19731733",
+                "subnet-02327c067b67ab5a7"
+            ]
+        });
+
+        const rdsdbsubnetgroup3 = new DbSubnetGroup(this, 'RDSDBSubnetGroup3', {
+            description: "Created from the RDS Management Console",
+            name: "default-vpc-0482d5f80f0379e19",
+            subnetIds: [
+                "subnet-05283a6a4941182cc",
+                "subnet-06f563cd49d8aa4c4",
+                "subnet-0ff262d3fe085f51e",
+                "subnet-0f7778e373cd0e494",
+                "subnet-0cf8ce1d25e45feac",
+                "subnet-0eb6311af97953cb9"
+            ]
+        });
+
+        const rdsdbsubnetgroup4 = new DbSubnetGroup(this, 'RDSDBSubnetGroup4', {
+            description: "Created from the RDS Management Console",
+            name: "default-vpc-0b6af3896aa43ebb6",
+            subnetIds: [
+                "subnet-078d0212076db6acf",
+                "subnet-076c01d1f8654916a",
+                "subnet-08792705f4114cb97",
+                "subnet-05a60ad03df0742b2",
+                "subnet-0e90e42a284e8f95c",
+                "subnet-03754d26219032cd1"
+            ]
+        });
+
+        const opsworksuserprofile = new OpsworksUserProfile(this, 'OpsWorksUserProfile', {
+            allowSelfManagement: false,
+            userArn: "arn:aws:iam::020459206978:user/former2",
+            sshUsername: "former2"
+        });
+
+        const logsloggroup = new CloudwatchLogGroup(this, 'LogsLogGroup', {
+            name: "/aws/rds/proxy/proxy-1670337462829-sqlserver"
+        });
+
+        const logsloggroup2 = new CloudwatchLogGroup(this, 'LogsLogGroup2', {
+            name: "AWSIotLogsV2",
+            retentionInDays: 30
+        });
+
+        const logsloggroup3 = new CloudwatchLogGroup(this, 'LogsLogGroup3', {
+            name: "RDSOSMetrics",
+            retentionInDays: 30
+        });
+
+        const logslogstream = new CloudwatchLogStream(this, 'LogsLogStream', {
+            logGroupName: "/aws/rds/proxy/proxy-1670337462829-sqlserver",
+            name: "proxy-1670337462829-sqlserver"
+        });
+
+        const logslogstream2 = new CloudwatchLogStream(this, 'LogsLogStream2', {
+            logGroupName: "AWSIotLogsV2",
+            name: "014d0a43-be4c-422e-8634-1eeda99e2b79_020459206978_0"
+        });
+
+        const logslogstream3 = new CloudwatchLogStream(this, 'LogsLogStream3', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0396ed49-aa61-4b86-88f0-942d335d1683_020459206978_0"
+        });
+
+        const logslogstream4 = new CloudwatchLogStream(this, 'LogsLogStream4', {
+            logGroupName: "AWSIotLogsV2",
+            name: "061cebf0-c4a5-4e33-a14d-35022c01bd34_020459206978_0"
+        });
+
+        const logslogstream5 = new CloudwatchLogStream(this, 'LogsLogStream5', {
+            logGroupName: "AWSIotLogsV2",
+            name: "06f067c5-ab15-4936-984f-38de37c8babc_020459206978_0"
+        });
+
+        const logslogstream6 = new CloudwatchLogStream(this, 'LogsLogStream6', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0726a556-f4f9-4ab2-9e70-d3886d26ca51_020459206978_0"
+        });
+
+        const logslogstream7 = new CloudwatchLogStream(this, 'LogsLogStream7', {
+            logGroupName: "AWSIotLogsV2",
+            name: "074393b9-4293-4c40-b8fb-dc8856dbe4be_020459206978_0"
+        });
+
+        const logslogstream8 = new CloudwatchLogStream(this, 'LogsLogStream8', {
+            logGroupName: "AWSIotLogsV2",
+            name: "09cf7c22-575d-4054-9c21-92cf2fc464cb_020459206978_0"
+        });
+
+        const logslogstream9 = new CloudwatchLogStream(this, 'LogsLogStream9', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0a0a751e-5d53-4417-b526-9296a8e2445e_020459206978_0"
+        });
+
+        const logslogstream10 = new CloudwatchLogStream(this, 'LogsLogStream10', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0a4598b2-def1-453e-b59e-a6803466a477_020459206978_0"
+        });
+
+        const logslogstream11 = new CloudwatchLogStream(this, 'LogsLogStream11', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0af0f01c-4098-4e6d-864f-b55851a85b26_020459206978_0"
+        });
+
+        const logslogstream12 = new CloudwatchLogStream(this, 'LogsLogStream12', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0be5c429-b9f0-4a51-9418-ccb755304e35_020459206978_0"
+        });
+
+        const logslogstream13 = new CloudwatchLogStream(this, 'LogsLogStream13', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0cc1dd70-7c9f-46db-80d5-f52493cf8099_020459206978_0"
+        });
+
+        const logslogstream14 = new CloudwatchLogStream(this, 'LogsLogStream14', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0e934aa0-1be5-4773-8a82-f70594667fb1_020459206978_0"
+        });
+
+        const logslogstream15 = new CloudwatchLogStream(this, 'LogsLogStream15', {
+            logGroupName: "AWSIotLogsV2",
+            name: "0eb67518-b063-4c59-b3ba-c66c124db56a_020459206978_0"
+        });
+
+        const logslogstream16 = new CloudwatchLogStream(this, 'LogsLogStream16', {
+            logGroupName: "AWSIotLogsV2",
+            name: "128283ed-cfae-4aee-b2d2-d40bad362d4b_020459206978_0"
+        });
+
+        const logslogstream17 = new CloudwatchLogStream(this, 'LogsLogStream17', {
+            logGroupName: "AWSIotLogsV2",
+            name: "138c3fea-f73c-4dc6-a0f9-8112273e03d3_020459206978_0"
+        });
+
+        const logslogstream18 = new CloudwatchLogStream(this, 'LogsLogStream18', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1429fe7c-83c0-4a87-a04e-e9f7fda88456_020459206978_0"
+        });
+
+        const logslogstream19 = new CloudwatchLogStream(this, 'LogsLogStream19', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1556fdc0-285c-4ef2-8ec8-0163578a8bd3_020459206978_0"
+        });
+
+        const logslogstream20 = new CloudwatchLogStream(this, 'LogsLogStream20', {
+            logGroupName: "AWSIotLogsV2",
+            name: "16d40039-4be2-4534-8046-594c776a014b_020459206978_0"
+        });
+
+        const logslogstream21 = new CloudwatchLogStream(this, 'LogsLogStream21', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1871503f-51d7-412f-b39e-1a70f89aa2e1_020459206978_0"
+        });
+
+        const logslogstream22 = new CloudwatchLogStream(this, 'LogsLogStream22', {
+            logGroupName: "AWSIotLogsV2",
+            name: "19930bb0-4897-47ef-8803-092599568a0e_020459206978_0"
+        });
+
+        const logslogstream23 = new CloudwatchLogStream(this, 'LogsLogStream23', {
+            logGroupName: "AWSIotLogsV2",
+            name: "19b0fb33-6890-423b-ac2b-bf10fa10e69c_020459206978_0"
+        });
+
+        const logslogstream24 = new CloudwatchLogStream(this, 'LogsLogStream24', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1a185bd4-ddc4-4943-8eb5-2f2a4bad8fd6_020459206978_0"
+        });
+
+        const logslogstream25 = new CloudwatchLogStream(this, 'LogsLogStream25', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1a774a76-94bc-4f9b-bf55-730c2b26001c_020459206978_0"
+        });
+
+        const logslogstream26 = new CloudwatchLogStream(this, 'LogsLogStream26', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1ac28919-9d4d-4868-bd19-44ac62b9b96b_020459206978_0"
+        });
+
+        const logslogstream27 = new CloudwatchLogStream(this, 'LogsLogStream27', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1b06a3a0-0302-498e-ba3e-bce252afe822_020459206978_0"
+        });
+
+        const logslogstream28 = new CloudwatchLogStream(this, 'LogsLogStream28', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1b147875-3614-4e14-b4a0-887058159f2a_020459206978_0"
+        });
+
+        const logslogstream29 = new CloudwatchLogStream(this, 'LogsLogStream29', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1c62255e-47d9-4744-8c90-f7e55a69a02d_020459206978_0"
+        });
+
+        const logslogstream30 = new CloudwatchLogStream(this, 'LogsLogStream30', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1e968018-9564-4eaa-b878-c439147f0c3a_020459206978_0"
+        });
+
+        const logslogstream31 = new CloudwatchLogStream(this, 'LogsLogStream31', {
+            logGroupName: "AWSIotLogsV2",
+            name: "1f48b8d8-c93d-4d63-895d-96f3dd3ce79d_020459206978_0"
+        });
+
+        const logslogstream32 = new CloudwatchLogStream(this, 'LogsLogStream32', {
+            logGroupName: "AWSIotLogsV2",
+            name: "208a8fa2-2fa1-45a4-bbab-dc7a336efd31_020459206978_0"
+        });
+
+        const logslogstream33 = new CloudwatchLogStream(this, 'LogsLogStream33', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2095c128-3eba-4453-9876-612ece69b575_020459206978_0"
+        });
+
+        const logslogstream34 = new CloudwatchLogStream(this, 'LogsLogStream34', {
+            logGroupName: "AWSIotLogsV2",
+            name: "209d5a96-3a80-4f02-b1c8-df06dc603191_020459206978_0"
+        });
+
+        const logslogstream35 = new CloudwatchLogStream(this, 'LogsLogStream35', {
+            logGroupName: "AWSIotLogsV2",
+            name: "21520f68-f1d1-44d4-81a2-60b1464698e6_020459206978_0"
+        });
+
+        const logslogstream36 = new CloudwatchLogStream(this, 'LogsLogStream36', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2194c23f-039a-4f5f-9b5f-2911b64265ea_020459206978_0"
+        });
+
+        const logslogstream37 = new CloudwatchLogStream(this, 'LogsLogStream37', {
+            logGroupName: "AWSIotLogsV2",
+            name: "22f3782e-0ce3-4ba9-aeda-313311847c26_020459206978_0"
+        });
+
+        const logslogstream38 = new CloudwatchLogStream(this, 'LogsLogStream38', {
+            logGroupName: "AWSIotLogsV2",
+            name: "22f88327-4c3f-4c00-a58a-563a07dcbdd4_020459206978_0"
+        });
+
+        const logslogstream39 = new CloudwatchLogStream(this, 'LogsLogStream39', {
+            logGroupName: "AWSIotLogsV2",
+            name: "236b4fe0-bd3e-4b05-b87f-b6f28141d26c_020459206978_0"
+        });
+
+        const logslogstream40 = new CloudwatchLogStream(this, 'LogsLogStream40', {
+            logGroupName: "AWSIotLogsV2",
+            name: "23886a6e-6c02-4c03-9268-1a96a9fbf89a_020459206978_0"
+        });
+
+        const logslogstream41 = new CloudwatchLogStream(this, 'LogsLogStream41', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2453df5f-3ac9-4d49-ade5-70c9fc151557_020459206978_0"
+        });
+
+        const logslogstream42 = new CloudwatchLogStream(this, 'LogsLogStream42', {
+            logGroupName: "AWSIotLogsV2",
+            name: "24770fee-01d4-487f-95a5-181694316033_020459206978_0"
+        });
+
+        const logslogstream43 = new CloudwatchLogStream(this, 'LogsLogStream43', {
+            logGroupName: "AWSIotLogsV2",
+            name: "249a882f-d4b9-47b0-aacb-a55db3b88c5b_020459206978_0"
+        });
+
+        const logslogstream44 = new CloudwatchLogStream(this, 'LogsLogStream44', {
+            logGroupName: "AWSIotLogsV2",
+            name: "263890d3-f43a-4444-b4bf-390bb3e67f2c_020459206978_0"
+        });
+
+        const logslogstream45 = new CloudwatchLogStream(this, 'LogsLogStream45', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2717e7b7-fbaf-4ae0-bccb-5867846f0852_020459206978_0"
+        });
+
+        const logslogstream46 = new CloudwatchLogStream(this, 'LogsLogStream46', {
+            logGroupName: "AWSIotLogsV2",
+            name: "27ad26bb-5668-4e0f-991f-d30903087818_020459206978_0"
+        });
+
+        const logslogstream47 = new CloudwatchLogStream(this, 'LogsLogStream47', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2b8c5c7b-1c18-4430-9b8a-c109a1a6bbb5_020459206978_0"
+        });
+
+        const logslogstream48 = new CloudwatchLogStream(this, 'LogsLogStream48', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2c0f47ea-8984-4551-b2f9-039f787865f9_020459206978_0"
+        });
+
+        const logslogstream49 = new CloudwatchLogStream(this, 'LogsLogStream49', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2cab990b-00a1-4c66-8f81-9e265963079c_020459206978_0"
+        });
+
+        const logslogstream50 = new CloudwatchLogStream(this, 'LogsLogStream50', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2d5a1bf8-c864-4d5b-9881-3a99061ac8fa_020459206978_0"
+        });
+
+        const logslogstream51 = new CloudwatchLogStream(this, 'LogsLogStream51', {
+            logGroupName: "AWSIotLogsV2",
+            name: "2ed840c0-856e-4308-94e0-31e763b42bc2_020459206978_0"
+        });
+
+        const logslogstream52 = new CloudwatchLogStream(this, 'LogsLogStream52', {
+            logGroupName: "RDSOSMetrics",
+            name: "db-3W654BJK7VKFQWKEJXWJBA3HEE"
+        });
+
+        const logslogstream53 = new CloudwatchLogStream(this, 'LogsLogStream53', {
+            logGroupName: "RDSOSMetrics",
+            name: "db-ZEJHDJ7HAEWLOOIWJDGXW6EQIE"
+        });
+
+        const logslogstream54 = new CloudwatchLogStream(this, 'LogsLogStream54', {
+            logGroupName: "RDSOSMetrics",
+            name: "db-ZEJHDJ7HAEWLOOIWJDGXW6EQIE-secondary"
+        });
+
+        const neptunedbsubnetgroup = new NeptuneSubnetGroup(this, 'NeptuneDBSubnetGroup', {
+            name: "default-vpc-02222fdb4b061f9c5",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-026044c2cddc7cf05",
+                "subnet-01622b3f96199f89f",
+                "subnet-0ccfc4d1a7fcff50f",
+                "subnet-05e17287aeb3d82d4",
+                "subnet-01c8857ffbc6625ff",
+                "subnet-0566860b207b8c2ea"
+            ]
+        });
+
+        const neptunedbsubnetgroup2 = new NeptuneSubnetGroup(this, 'NeptuneDBSubnetGroup2', {
+            name: "default-vpc-043aa73c0d4434526",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-0230b187a9529b599",
+                "subnet-084beaee0f68992b5",
+                "subnet-03eae18a1ee8f376a",
+                "subnet-040ad506553e581b7",
+                "subnet-0b06432bb19731733",
+                "subnet-02327c067b67ab5a7"
+            ]
+        });
+
+        const neptunedbsubnetgroup3 = new NeptuneSubnetGroup(this, 'NeptuneDBSubnetGroup3', {
+            name: "default-vpc-0482d5f80f0379e19",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-05283a6a4941182cc",
+                "subnet-06f563cd49d8aa4c4",
+                "subnet-0ff262d3fe085f51e",
+                "subnet-0f7778e373cd0e494",
+                "subnet-0cf8ce1d25e45feac",
+                "subnet-0eb6311af97953cb9"
+            ]
+        });
+
+        const neptunedbsubnetgroup4 = new NeptuneSubnetGroup(this, 'NeptuneDBSubnetGroup4', {
+            name: "default-vpc-0b6af3896aa43ebb6",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-078d0212076db6acf",
+                "subnet-076c01d1f8654916a",
+                "subnet-08792705f4114cb97",
+                "subnet-05a60ad03df0742b2",
+                "subnet-0e90e42a284e8f95c",
+                "subnet-03754d26219032cd1"
+            ]
+        });
+
+        const docdbdbsubnetgroup = new DocdbSubnetGroup(this, 'DocDBDBSubnetGroup', {
+            name: "default-vpc-02222fdb4b061f9c5",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-026044c2cddc7cf05",
+                "subnet-01622b3f96199f89f",
+                "subnet-0ccfc4d1a7fcff50f",
+                "subnet-05e17287aeb3d82d4",
+                "subnet-01c8857ffbc6625ff",
+                "subnet-0566860b207b8c2ea"
+            ]
+        });
+
+        const docdbdbsubnetgroup2 = new DocdbSubnetGroup(this, 'DocDBDBSubnetGroup2', {
+            name: "default-vpc-043aa73c0d4434526",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-0230b187a9529b599",
+                "subnet-084beaee0f68992b5",
+                "subnet-03eae18a1ee8f376a",
+                "subnet-040ad506553e581b7",
+                "subnet-0b06432bb19731733",
+                "subnet-02327c067b67ab5a7"
+            ]
+        });
+
+        const docdbdbsubnetgroup3 = new DocdbSubnetGroup(this, 'DocDBDBSubnetGroup3', {
+            name: "default-vpc-0482d5f80f0379e19",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-05283a6a4941182cc",
+                "subnet-06f563cd49d8aa4c4",
+                "subnet-0ff262d3fe085f51e",
+                "subnet-0f7778e373cd0e494",
+                "subnet-0cf8ce1d25e45feac",
+                "subnet-0eb6311af97953cb9"
+            ]
+        });
+
+        const docdbdbsubnetgroup4 = new DocdbSubnetGroup(this, 'DocDBDBSubnetGroup4', {
+            name: "default-vpc-0b6af3896aa43ebb6",
+            description: "Created from the RDS Management Console",
+            subnetIds: [
+                "subnet-078d0212076db6acf",
+                "subnet-076c01d1f8654916a",
+                "subnet-08792705f4114cb97",
+                "subnet-05a60ad03df0742b2",
+                "subnet-0e90e42a284e8f95c",
+                "subnet-03754d26219032cd1"
+            ]
+        });
+
+        const iotthing = new IotThing(this, 'IoTThing', {
+            name: "CasilleroCIG_0000",
+            attributes: {}
+        });
+
+        const iotthing2 = new IotThing(this, 'IoTThing2', {
+            name: "CasilleroCIG_0002",
+            attributes: {}
+        });
+
+        const iotthingprincipalattachment = new IotThingPrincipalAttachment(this, 'IoTThingPrincipalAttachment', {
+            thing: "CasilleroCIG_0001",
+            principal: "arn:aws:iot:us-east-1:020459206978:cert/8b70129b40d5fc7f8ac5b09df33f575571ff2e1535ce96fd0bb0bf94db7b9cd0"
+        });
+
+        const iotthingprincipalattachment2 = new IotThingPrincipalAttachment(this, 'IoTThingPrincipalAttachment2', {
+            thing: "CasilleroCIG_0001",
+            principal: "arn:aws:iot:us-east-1:020459206978:cert/52efa514401e2428ae7c984101e645cfb5e6f88f75cc768031003619ee241f04"
+        });
+
+        const iotthingprincipalattachment3 = new IotThingPrincipalAttachment(this, 'IoTThingPrincipalAttachment3', {
+            thing: "CasilleroCIG_0002",
+            principal: "arn:aws:iot:us-east-1:020459206978:cert/97c4fa7d2a6233d2881033ddcae8a1e0bd2c2fd5b9f537aba0d26c67575093f0"
+        });
+
+        const iotthingprincipalattachment4 = new IotThingPrincipalAttachment(this, 'IoTThingPrincipalAttachment4', {
+            thing: "CasilleroCIG_0000",
+            principal: "arn:aws:iot:us-east-1:020459206978:cert/fb5cca532131938f0fa342341814941458e7d704cc3a21b142151155ac262723"
+        });
+
+        const iotpolicy = new IotPolicy(this, 'IoTPolicy', {
+            name: "CasilleroCIG_0001-Policy",
+            policy: `
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Publish",
+        "iot:Receive"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:topic/sdk/test/java",
+        "arn:aws:iot:us-east-1:314579969853:topic/sdk/test/Python",
+        "arn:aws:iot:us-east-1:314579969853:topic/lavanderiaCIG/apertura/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topic/lavanderiaCIG/estado/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topic/topic_1",
+        "arn:aws:iot:us-east-1:314579969853:topic/topic_2"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/sdk/test/java",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/sdk/test/Python",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/lavanderiaCIG/apertura/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/lavanderiaCIG/estado/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/topic_1",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/topic_2"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:client/sdk-java",
+        "arn:aws:iot:us-east-1:314579969853:client/basicPubSub",
+        "arn:aws:iot:us-east-1:314579969853:client/sdk-nodejs-*"
+      ]
+    }
+  ]
+}
+`
+        });
+
+        const iotpolicy2 = new IotPolicy(this, 'IoTPolicy2', {
+            name: "casilleroCIG_policy",
+            policy: `
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Publish",
+        "iot:Receive"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:topic/sdk/test/java",
+        "arn:aws:iot:us-east-1:314579969853:topic/sdk/test/Python",
+        "arn:aws:iot:us-east-1:314579969853:topic/lavanderiaCIG/apertura/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topic/lavanderiaCIG/estado/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topic/topic_1",
+        "arn:aws:iot:us-east-1:314579969853:topic/topic_2"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/sdk/test/java",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/sdk/test/Python",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/lavanderiaCIG/apertura/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/lavanderiaCIG/estado/puerta",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/topic_1",
+        "arn:aws:iot:us-east-1:314579969853:topicfilter/topic_2"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": [
+        "arn:aws:iot:us-east-1:314579969853:client/sdk-java",
+        "arn:aws:iot:us-east-1:314579969853:client/basicPubSub",
+        "arn:aws:iot:us-east-1:314579969853:client/sdk-nodejs-*"
+      ]
+    }
+  ]
+}
+`
+        });
+
+        const iotpolicy3 = new IotPolicy(this, 'IoTPolicy3', {
+            name: "CasilleroCIG_0002-Policy",
+            policy: `
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iot:Publish",
+        "iot:Receive"
+      ],
+      "Resource": [
+        "arn:aws:iot:us-east-1:020459206978:topic/sdk/test/java",
+        "arn:aws:iot:us-east-1:020459206978:topic/sdk/test/Python",
+        "arn:aws:iot:us-east-1:020459206978:topic/lavanderiaCIG/centro_comercial_sur/casillero/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:us-east-1:020459206978:topicfilter/sdk/test/java",
+        "arn:aws:iot:us-east-1:020459206978:topicfilter/sdk/test/Python",
+        "arn:aws:iot:us-east-1:020459206978:topicfilter/lavanderiaCIG/centro_comercial_sur/casillero/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": [
+        "arn:aws:iot:us-east-1:020459206978:client/sdk-java",
+        "arn:aws:iot:us-east-1:020459206978:client/basicPubSub",
+        "arn:aws:iot:us-east-1:020459206978:client/sdk-nodejs-*",
+        "arn:aws:iot:us-east-1:020459206978:client/test-*"
+      ]
+    }
+  ]
+}
+`
+        });
+
+        const iotpolicyprincipalattachment = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment', {
+            policy: "casilleroCIG_policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/97c4fa7d2a6233d2881033ddcae8a1e0bd2c2fd5b9f537aba0d26c67575093f0"
+        });
+
+        const iotpolicyprincipalattachment2 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment2', {
+            policy: "casilleroCIG_policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/fbbccb3c359f2ca293295b923703024ddea4850df55af365b906ae38cf713015"
+        });
+
+        const iotpolicyprincipalattachment3 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment3', {
+            policy: "casilleroCIG_policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/284208d25a53d361a66d9dbeae9843f5d41cd73ea6dde3dc88b9445f9cffa311"
+        });
+
+        const iotpolicyprincipalattachment4 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment4', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/97c4fa7d2a6233d2881033ddcae8a1e0bd2c2fd5b9f537aba0d26c67575093f0"
+        });
+
+        const iotpolicyprincipalattachment5 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment5', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/528aba07d91921a97ec4e48c6a4589aed6b7786bfa38c2758f4aa88d3170bb5d"
+        });
+
+        const iotpolicyprincipalattachment6 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment6', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/fb1a833f708088820fd41d29c91d04816dc33c83833c84bc0e0260f36b16f2b6"
+        });
+
+        const iotpolicyprincipalattachment7 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment7', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/fbbccb3c359f2ca293295b923703024ddea4850df55af365b906ae38cf713015"
+        });
+
+        const iotpolicyprincipalattachment8 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment8', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/58db39f25d3e37b6d4ada941ee6faa7d143cfe015e9977e70062ef16c3979c34"
+        });
+
+        const iotpolicyprincipalattachment9 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment9', {
+            policy: "CasilleroCIG_0002-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/d231209662f5d88a7a0c16d8ff698fbb150cc1166b0f41f4e05d319b902ddf12"
+        });
+
+        const iotpolicyprincipalattachment10 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment10', {
+            policy: "CasilleroCIG_0001-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/97c4fa7d2a6233d2881033ddcae8a1e0bd2c2fd5b9f537aba0d26c67575093f0"
+        });
+
+        const iotpolicyprincipalattachment11 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment11', {
+            policy: "CasilleroCIG_0001-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/fbbccb3c359f2ca293295b923703024ddea4850df55af365b906ae38cf713015"
+        });
+
+        const iotpolicyprincipalattachment12 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment12', {
+            policy: "CasilleroCIG_0001-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/52efa514401e2428ae7c984101e645cfb5e6f88f75cc768031003619ee241f04"
+        });
+
+        const iotpolicyprincipalattachment13 = new IotPolicyAttachment(this, 'IoTPolicyPrincipalAttachment13', {
+            policy: "CasilleroCIG_0001-Policy",
+            target: "arn:aws:iot:us-east-1:020459206978:cert/8b70129b40d5fc7f8ac5b09df33f575571ff2e1535ce96fd0bb0bf94db7b9cd0"
+        });
+
+        const iotcertificate = new IotCertificate(this, 'IoTCertificate', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate2 = new IotCertificate(this, 'IoTCertificate2', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate3 = new IotCertificate(this, 'IoTCertificate3', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate4 = new IotCertificate(this, 'IoTCertificate4', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate5 = new IotCertificate(this, 'IoTCertificate5', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate6 = new IotCertificate(this, 'IoTCertificate6', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate7 = new IotCertificate(this, 'IoTCertificate7', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate8 = new IotCertificate(this, 'IoTCertificate8', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate9 = new IotCertificate(this, 'IoTCertificate9', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const iotcertificate10 = new IotCertificate(this, 'IoTCertificate10', {
+            active: true,
+            csr: "REPLACEME"
+        });
+
+        const secretsmanagersecret = new SecretsmanagerSecret(this, 'SecretsManagerSecret', {
+            name: "rds-db-credentials/db-KK2FN4HIEUUMOP25MD2RN7D2X4/admCIGUsr/1670277296686",
+            description: "RDS database admCIGUsr credentials for lavanderiacig-db"
+        });
+
+        const secretsmanagersecretversion = new SecretsmanagerSecretVersion(this, 'SecretsManagerSecretVersion', {
+            secretId: "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-KK2FN4HIEUUMOP25MD2RN7D2X4/admCIGUsr/1670277296686-SdKh3d",
+            secretString: "{\"dbInstanceIdentifier\":\"lavanderiacig-db\",\"engine\":\"sqlserver-se\",\"resourceId\":\"db-KK2FN4HIEUUMOP25MD2RN7D2X4\",\"username\":\"admCIGUsr\",\"password\":\"Cig4159-+\"}"
+        });
+
+        const secretsmanagersecret2 = new SecretsmanagerSecret(this, 'SecretsManagerSecret2', {
+            name: "rds-db-credentials/db-3W654BJK7VKFQWKEJXWJBA3HEE/admCIGUsr/1670337460481",
+            description: "RDS database admCIGUsr credentials for sqlserver"
+        });
+
+        const secretsmanagersecretversion2 = new SecretsmanagerSecretVersion(this, 'SecretsManagerSecretVersion2', {
+            secretId: "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-3W654BJK7VKFQWKEJXWJBA3HEE/admCIGUsr/1670337460481-PDvldK",
+            secretString: "{\"dbInstanceIdentifier\":\"sqlserver\",\"engine\":\"sqlserver-web\",\"resourceId\":\"db-3W654BJK7VKFQWKEJXWJBA3HEE\",\"username\":\"admCIGUsr\",\"password\":\"Cig4159-+\"}"
+        });
+
+        const secretsmanagersecret3 = new SecretsmanagerSecret(this, 'SecretsManagerSecret3', {
+            name: "rds-db-credentials/db-KK2FN4HIEUUMOP25MD2RN7D2X4/admCIGUsr/1670277297499",
+            description: "RDS database admCIGUsr credentials for lavanderiacig-db"
+        });
+
+        const secretsmanagersecretversion3 = new SecretsmanagerSecretVersion(this, 'SecretsManagerSecretVersion3', {
+            secretId: "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-KK2FN4HIEUUMOP25MD2RN7D2X4/admCIGUsr/1670277297499-4sYdKZ",
+            secretString: "{\"dbInstanceIdentifier\":\"lavanderiacig-db\",\"engine\":\"sqlserver-se\",\"resourceId\":\"db-KK2FN4HIEUUMOP25MD2RN7D2X4\",\"username\":\"admCIGUsr\",\"password\":\"Cig4159-+\"}"
+        });
+
+        const secretsmanagersecret4 = new SecretsmanagerSecret(this, 'SecretsManagerSecret4', {
+            name: "rds-db-credentials/db-3W654BJK7VKFQWKEJXWJBA3HEE/admCIGUsr/1670337461064",
+            description: "RDS database admCIGUsr credentials for sqlserver"
+        });
+
+        const secretsmanagersecretversion4 = new SecretsmanagerSecretVersion(this, 'SecretsManagerSecretVersion4', {
+            secretId: "arn:aws:secretsmanager:us-east-1:020459206978:secret:rds-db-credentials/db-3W654BJK7VKFQWKEJXWJBA3HEE/admCIGUsr/1670337461064-JRgh80",
+            secretString: "{\"dbInstanceIdentifier\":\"sqlserver\",\"engine\":\"sqlserver-web\",\"resourceId\":\"db-3W654BJK7VKFQWKEJXWJBA3HEE\",\"username\":\"admCIGUsr\",\"password\":\"Cig4159-+\"}"
+        });
+
+        new TerraformOutput(this, 'iamuser', {
+            value: iamuser
+        });
+
+        new TerraformOutput(this, 'iamuser2', {
+            value: iamuser2
+        });
+
+        new TerraformOutput(this, 'iamrole', {
+            value: iamrole
+        });
+
+        new TerraformOutput(this, 'iamrole2', {
+            value: iamrole2
+        });
+
+        new TerraformOutput(this, 'iamrole3', {
+            value: iamrole3
+        });
+
+        new TerraformOutput(this, 'iamrole4', {
+            value: iamrole4
+        });
+
+        new TerraformOutput(this, 'iamrole5', {
+            value: iamrole5
+        });
+
+        new TerraformOutput(this, 'iamservicelinkedrole', {
+            value: iamservicelinkedrole
+        });
+
+        new TerraformOutput(this, 'iammanagedpolicy', {
+            value: iammanagedpolicy
+        });
+
+        new TerraformOutput(this, 'iammanagedpolicy2', {
+            value: iammanagedpolicy2
+        });
+
+        new TerraformOutput(this, 'iammanagedpolicy3', {
+            value: iammanagedpolicy3
+        });
+
+        new TerraformOutput(this, 'iammanagedpolicy4', {
+            value: iammanagedpolicy4
+        });
+
+        new TerraformOutput(this, 'iammanagedpolicy5', {
+            value: iammanagedpolicy5
+        });
+
+        new TerraformOutput(this, 'iamaccesskey', {
+            value: iamaccesskey
+        });
+
+        new TerraformOutput(this, 'iamaccesskey2', {
+            value: iamaccesskey2
+        });
+
+        new TerraformOutput(this, 'ec2vpc', {
+            value: ec2vpc
+        });
+
+        new TerraformOutput(this, 'ec2vpc2', {
+            value: ec2vpc2
+        });
+
+        new TerraformOutput(this, 'ec2vpc3', {
+            value: ec2vpc3
+        });
+
+        new TerraformOutput(this, 'ec2vpc4', {
+            value: ec2vpc4
+        });
+
+        new TerraformOutput(this, 'ec2subnet', {
+            value: ec2subnet
+        });
+
+        new TerraformOutput(this, 'ec2subnet2', {
+            value: ec2subnet2
+        });
+
+        new TerraformOutput(this, 'ec2subnet3', {
+            value: ec2subnet3
+        });
+
+        new TerraformOutput(this, 'ec2subnet4', {
+            value: ec2subnet4
+        });
+
+        new TerraformOutput(this, 'ec2subnet5', {
+            value: ec2subnet5
+        });
+
+        new TerraformOutput(this, 'ec2subnet6', {
+            value: ec2subnet6
+        });
+
+        new TerraformOutput(this, 'ec2subnet7', {
+            value: ec2subnet7
+        });
+
+        new TerraformOutput(this, 'ec2subnet8', {
+            value: ec2subnet8
+        });
+
+        new TerraformOutput(this, 'ec2subnet9', {
+            value: ec2subnet9
+        });
+
+        new TerraformOutput(this, 'ec2subnet10', {
+            value: ec2subnet10
+        });
+
+        new TerraformOutput(this, 'ec2subnet11', {
+            value: ec2subnet11
+        });
+
+        new TerraformOutput(this, 'ec2subnet12', {
+            value: ec2subnet12
+        });
+
+        new TerraformOutput(this, 'ec2subnet13', {
+            value: ec2subnet13
+        });
+
+        new TerraformOutput(this, 'ec2subnet14', {
+            value: ec2subnet14
+        });
+
+        new TerraformOutput(this, 'ec2subnet15', {
+            value: ec2subnet15
+        });
+
+        new TerraformOutput(this, 'ec2subnet16', {
+            value: ec2subnet16
+        });
+
+        new TerraformOutput(this, 'ec2subnet17', {
+            value: ec2subnet17
+        });
+
+        new TerraformOutput(this, 'ec2subnet18', {
+            value: ec2subnet18
+        });
+
+        new TerraformOutput(this, 'ec2subnet19', {
+            value: ec2subnet19
+        });
+
+        new TerraformOutput(this, 'ec2subnet20', {
+            value: ec2subnet20
+        });
+
+        new TerraformOutput(this, 'ec2subnet21', {
+            value: ec2subnet21
+        });
+
+        new TerraformOutput(this, 'ec2subnet22', {
+            value: ec2subnet22
+        });
+
+        new TerraformOutput(this, 'ec2subnet23', {
+            value: ec2subnet23
+        });
+
+        new TerraformOutput(this, 'ec2subnet24', {
+            value: ec2subnet24
+        });
+
+        new TerraformOutput(this, 'ec2internetgateway', {
+            value: ec2internetgateway
+        });
+
+        new TerraformOutput(this, 'ec2internetgateway2', {
+            value: ec2internetgateway2
+        });
+
+        new TerraformOutput(this, 'ec2internetgateway3', {
+            value: ec2internetgateway3
+        });
+
+        new TerraformOutput(this, 'ec2internetgateway4', {
+            value: ec2internetgateway4
+        });
+
+        new TerraformOutput(this, 'ec2dhcpoptions', {
+            value: ec2dhcpoptions
+        });
+
+        new TerraformOutput(this, 'ec2vpcdhcpoptionsassociation', {
+            value: ec2vpcdhcpoptionsassociation
+        });
+
+        new TerraformOutput(this, 'ec2vpcdhcpoptionsassociation2', {
+            value: ec2vpcdhcpoptionsassociation2
+        });
+
+        new TerraformOutput(this, 'ec2vpcdhcpoptionsassociation3', {
+            value: ec2vpcdhcpoptionsassociation3
+        });
+
+        new TerraformOutput(this, 'ec2vpcdhcpoptionsassociation4', {
+            value: ec2vpcdhcpoptionsassociation4
+        });
+
+        new TerraformOutput(this, 'ec2networkacl', {
+            value: ec2networkacl
+        });
+
+        new TerraformOutput(this, 'ec2networkacl2', {
+            value: ec2networkacl2
+        });
+
+        new TerraformOutput(this, 'ec2networkacl3', {
+            value: ec2networkacl3
+        });
+
+        new TerraformOutput(this, 'ec2networkacl4', {
+            value: ec2networkacl4
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry', {
+            value: ec2networkaclentry
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry2', {
+            value: ec2networkaclentry2
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry3', {
+            value: ec2networkaclentry3
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry4', {
+            value: ec2networkaclentry4
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry5', {
+            value: ec2networkaclentry5
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry6', {
+            value: ec2networkaclentry6
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry7', {
+            value: ec2networkaclentry7
+        });
+
+        new TerraformOutput(this, 'ec2networkaclentry8', {
+            value: ec2networkaclentry8
+        });
+
+        new TerraformOutput(this, 'ec2routetable', {
+            value: ec2routetable
+        });
+
+        new TerraformOutput(this, 'ec2routetable2', {
+            value: ec2routetable2
+        });
+
+        new TerraformOutput(this, 'ec2routetable3', {
+            value: ec2routetable3
+        });
+
+        new TerraformOutput(this, 'ec2routetable4', {
+            value: ec2routetable4
+        });
+
+        new TerraformOutput(this, 'ec2route', {
+            value: ec2route
+        });
+
+        new TerraformOutput(this, 'ec2route2', {
+            value: ec2route2
+        });
+
+        new TerraformOutput(this, 'ec2route3', {
+            value: ec2route3
+        });
+
+        new TerraformOutput(this, 'ec2route4', {
+            value: ec2route4
+        });
+
+        new TerraformOutput(this, 'ec2vpcendpoint', {
+            value: ec2vpcendpoint
+        });
+
+        new TerraformOutput(this, 'ec2vpcendpoint2', {
+            value: ec2vpcendpoint2
+        });
+
+        new TerraformOutput(this, 'route53hostedzone', {
+            value: route53hostedzone
+        });
+
+        new TerraformOutput(this, 'route53recordset', {
+            value: route53recordset
+        });
+
+        new TerraformOutput(this, 'route53recordset2', {
+            value: route53recordset2
+        });
+
+        new TerraformOutput(this, 'ec2instance', {
+            value: ec2instance
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup', {
+            value: ec2securitygroup
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup2', {
+            value: ec2securitygroup2
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup3', {
+            value: ec2securitygroup3
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup4', {
+            value: ec2securitygroup4
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup5', {
+            value: ec2securitygroup5
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup6', {
+            value: ec2securitygroup6
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup7', {
+            value: ec2securitygroup7
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup8', {
+            value: ec2securitygroup8
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup9', {
+            value: ec2securitygroup9
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup10', {
+            value: ec2securitygroup10
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup11', {
+            value: ec2securitygroup11
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup12', {
+            value: ec2securitygroup12
+        });
+
+        new TerraformOutput(this, 'ec2securitygroup13', {
+            value: ec2securitygroup13
+        });
+
+        new TerraformOutput(this, 'ec2volume', {
+            value: ec2volume
+        });
+
+        new TerraformOutput(this, 'ec2volumeattachment', {
+            value: ec2volumeattachment
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface', {
+            value: ec2networkinterface
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface2', {
+            value: ec2networkinterface2
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface3', {
+            value: ec2networkinterface3
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface4', {
+            value: ec2networkinterface4
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface5', {
+            value: ec2networkinterface5
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface6', {
+            value: ec2networkinterface6
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface7', {
+            value: ec2networkinterface7
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface8', {
+            value: ec2networkinterface8
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface9', {
+            value: ec2networkinterface9
+        });
+
+        new TerraformOutput(this, 'ec2networkinterface10', {
+            value: ec2networkinterface10
+        });
+
+        new TerraformOutput(this, 'ec2networkinterfaceattachment', {
+            value: ec2networkinterfaceattachment
+        });
+
+        new TerraformOutput(this, 'ec2keypair', {
+            value: ec2keypair
+        });
+
+        new TerraformOutput(this, 'lambdafunction', {
+            value: lambdafunction
+        });
+
+        new TerraformOutput(this, 'rdsdbinstance', {
+            value: rdsdbinstance
+        });
+
+        new TerraformOutput(this, 'rdsdbinstance2', {
+            value: rdsdbinstance2
+        });
+
+        new TerraformOutput(this, 'rdsdbsubnetgroup', {
+            value: rdsdbsubnetgroup
+        });
+
+        new TerraformOutput(this, 'rdsdbsubnetgroup2', {
+            value: rdsdbsubnetgroup2
+        });
+
+        new TerraformOutput(this, 'rdsdbsubnetgroup3', {
+            value: rdsdbsubnetgroup3
+        });
+
+        new TerraformOutput(this, 'rdsdbsubnetgroup4', {
+            value: rdsdbsubnetgroup4
+        });
+
+        new TerraformOutput(this, 'opsworksuserprofile', {
+            value: opsworksuserprofile
+        });
+
+        new TerraformOutput(this, 'logsloggroup', {
+            value: logsloggroup
+        });
+
+        new TerraformOutput(this, 'logsloggroup2', {
+            value: logsloggroup2
+        });
+
+        new TerraformOutput(this, 'logsloggroup3', {
+            value: logsloggroup3
+        });
+
+        new TerraformOutput(this, 'logslogstream', {
+            value: logslogstream
+        });
+
+        new TerraformOutput(this, 'logslogstream2', {
+            value: logslogstream2
+        });
+
+        new TerraformOutput(this, 'logslogstream3', {
+            value: logslogstream3
+        });
+
+        new TerraformOutput(this, 'logslogstream4', {
+            value: logslogstream4
+        });
+
+        new TerraformOutput(this, 'logslogstream5', {
+            value: logslogstream5
+        });
+
+        new TerraformOutput(this, 'logslogstream6', {
+            value: logslogstream6
+        });
+
+        new TerraformOutput(this, 'logslogstream7', {
+            value: logslogstream7
+        });
+
+        new TerraformOutput(this, 'logslogstream8', {
+            value: logslogstream8
+        });
+
+        new TerraformOutput(this, 'logslogstream9', {
+            value: logslogstream9
+        });
+
+        new TerraformOutput(this, 'logslogstream10', {
+            value: logslogstream10
+        });
+
+        new TerraformOutput(this, 'logslogstream11', {
+            value: logslogstream11
+        });
+
+        new TerraformOutput(this, 'logslogstream12', {
+            value: logslogstream12
+        });
+
+        new TerraformOutput(this, 'logslogstream13', {
+            value: logslogstream13
+        });
+
+        new TerraformOutput(this, 'logslogstream14', {
+            value: logslogstream14
+        });
+
+        new TerraformOutput(this, 'logslogstream15', {
+            value: logslogstream15
+        });
+
+        new TerraformOutput(this, 'logslogstream16', {
+            value: logslogstream16
+        });
+
+        new TerraformOutput(this, 'logslogstream17', {
+            value: logslogstream17
+        });
+
+        new TerraformOutput(this, 'logslogstream18', {
+            value: logslogstream18
+        });
+
+        new TerraformOutput(this, 'logslogstream19', {
+            value: logslogstream19
+        });
+
+        new TerraformOutput(this, 'logslogstream20', {
+            value: logslogstream20
+        });
+
+        new TerraformOutput(this, 'logslogstream21', {
+            value: logslogstream21
+        });
+
+        new TerraformOutput(this, 'logslogstream22', {
+            value: logslogstream22
+        });
+
+        new TerraformOutput(this, 'logslogstream23', {
+            value: logslogstream23
+        });
+
+        new TerraformOutput(this, 'logslogstream24', {
+            value: logslogstream24
+        });
+
+        new TerraformOutput(this, 'logslogstream25', {
+            value: logslogstream25
+        });
+
+        new TerraformOutput(this, 'logslogstream26', {
+            value: logslogstream26
+        });
+
+        new TerraformOutput(this, 'logslogstream27', {
+            value: logslogstream27
+        });
+
+        new TerraformOutput(this, 'logslogstream28', {
+            value: logslogstream28
+        });
+
+        new TerraformOutput(this, 'logslogstream29', {
+            value: logslogstream29
+        });
+
+        new TerraformOutput(this, 'logslogstream30', {
+            value: logslogstream30
+        });
+
+        new TerraformOutput(this, 'logslogstream31', {
+            value: logslogstream31
+        });
+
+        new TerraformOutput(this, 'logslogstream32', {
+            value: logslogstream32
+        });
+
+        new TerraformOutput(this, 'logslogstream33', {
+            value: logslogstream33
+        });
+
+        new TerraformOutput(this, 'logslogstream34', {
+            value: logslogstream34
+        });
+
+        new TerraformOutput(this, 'logslogstream35', {
+            value: logslogstream35
+        });
+
+        new TerraformOutput(this, 'logslogstream36', {
+            value: logslogstream36
+        });
+
+        new TerraformOutput(this, 'logslogstream37', {
+            value: logslogstream37
+        });
+
+        new TerraformOutput(this, 'logslogstream38', {
+            value: logslogstream38
+        });
+
+        new TerraformOutput(this, 'logslogstream39', {
+            value: logslogstream39
+        });
+
+        new TerraformOutput(this, 'logslogstream40', {
+            value: logslogstream40
+        });
+
+        new TerraformOutput(this, 'logslogstream41', {
+            value: logslogstream41
+        });
+
+        new TerraformOutput(this, 'logslogstream42', {
+            value: logslogstream42
+        });
+
+        new TerraformOutput(this, 'logslogstream43', {
+            value: logslogstream43
+        });
+
+        new TerraformOutput(this, 'logslogstream44', {
+            value: logslogstream44
+        });
+
+        new TerraformOutput(this, 'logslogstream45', {
+            value: logslogstream45
+        });
+
+        new TerraformOutput(this, 'logslogstream46', {
+            value: logslogstream46
+        });
+
+        new TerraformOutput(this, 'logslogstream47', {
+            value: logslogstream47
+        });
+
+        new TerraformOutput(this, 'logslogstream48', {
+            value: logslogstream48
+        });
+
+        new TerraformOutput(this, 'logslogstream49', {
+            value: logslogstream49
+        });
+
+        new TerraformOutput(this, 'logslogstream50', {
+            value: logslogstream50
+        });
+
+        new TerraformOutput(this, 'logslogstream51', {
+            value: logslogstream51
+        });
+
+        new TerraformOutput(this, 'logslogstream52', {
+            value: logslogstream52
+        });
+
+        new TerraformOutput(this, 'logslogstream53', {
+            value: logslogstream53
+        });
+
+        new TerraformOutput(this, 'logslogstream54', {
+            value: logslogstream54
+        });
+
+        new TerraformOutput(this, 'neptunedbsubnetgroup', {
+            value: neptunedbsubnetgroup
+        });
+
+        new TerraformOutput(this, 'neptunedbsubnetgroup2', {
+            value: neptunedbsubnetgroup2
+        });
+
+        new TerraformOutput(this, 'neptunedbsubnetgroup3', {
+            value: neptunedbsubnetgroup3
+        });
+
+        new TerraformOutput(this, 'neptunedbsubnetgroup4', {
+            value: neptunedbsubnetgroup4
+        });
+
+        new TerraformOutput(this, 'docdbdbsubnetgroup', {
+            value: docdbdbsubnetgroup
+        });
+
+        new TerraformOutput(this, 'docdbdbsubnetgroup2', {
+            value: docdbdbsubnetgroup2
+        });
+
+        new TerraformOutput(this, 'docdbdbsubnetgroup3', {
+            value: docdbdbsubnetgroup3
+        });
+
+        new TerraformOutput(this, 'docdbdbsubnetgroup4', {
+            value: docdbdbsubnetgroup4
+        });
+
+        new TerraformOutput(this, 'iotthing', {
+            value: iotthing
+        });
+
+        new TerraformOutput(this, 'iotthing2', {
+            value: iotthing2
+        });
+
+        new TerraformOutput(this, 'iotthingprincipalattachment', {
+            value: iotthingprincipalattachment
+        });
+
+        new TerraformOutput(this, 'iotthingprincipalattachment2', {
+            value: iotthingprincipalattachment2
+        });
+
+        new TerraformOutput(this, 'iotthingprincipalattachment3', {
+            value: iotthingprincipalattachment3
+        });
+
+        new TerraformOutput(this, 'iotthingprincipalattachment4', {
+            value: iotthingprincipalattachment4
+        });
+
+        new TerraformOutput(this, 'iotpolicy', {
+            value: iotpolicy
+        });
+
+        new TerraformOutput(this, 'iotpolicy2', {
+            value: iotpolicy2
+        });
+
+        new TerraformOutput(this, 'iotpolicy3', {
+            value: iotpolicy3
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment', {
+            value: iotpolicyprincipalattachment
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment2', {
+            value: iotpolicyprincipalattachment2
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment3', {
+            value: iotpolicyprincipalattachment3
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment4', {
+            value: iotpolicyprincipalattachment4
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment5', {
+            value: iotpolicyprincipalattachment5
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment6', {
+            value: iotpolicyprincipalattachment6
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment7', {
+            value: iotpolicyprincipalattachment7
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment8', {
+            value: iotpolicyprincipalattachment8
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment9', {
+            value: iotpolicyprincipalattachment9
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment10', {
+            value: iotpolicyprincipalattachment10
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment11', {
+            value: iotpolicyprincipalattachment11
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment12', {
+            value: iotpolicyprincipalattachment12
+        });
+
+        new TerraformOutput(this, 'iotpolicyprincipalattachment13', {
+            value: iotpolicyprincipalattachment13
+        });
+
+        new TerraformOutput(this, 'iotcertificate', {
+            value: iotcertificate
+        });
+
+        new TerraformOutput(this, 'iotcertificate2', {
+            value: iotcertificate2
+        });
+
+        new TerraformOutput(this, 'iotcertificate3', {
+            value: iotcertificate3
+        });
+
+        new TerraformOutput(this, 'iotcertificate4', {
+            value: iotcertificate4
+        });
+
+        new TerraformOutput(this, 'iotcertificate5', {
+            value: iotcertificate5
+        });
+
+        new TerraformOutput(this, 'iotcertificate6', {
+            value: iotcertificate6
+        });
+
+        new TerraformOutput(this, 'iotcertificate7', {
+            value: iotcertificate7
+        });
+
+        new TerraformOutput(this, 'iotcertificate8', {
+            value: iotcertificate8
+        });
+
+        new TerraformOutput(this, 'iotcertificate9', {
+            value: iotcertificate9
+        });
+
+        new TerraformOutput(this, 'iotcertificate10', {
+            value: iotcertificate10
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecret', {
+            value: secretsmanagersecret
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecretversion', {
+            value: secretsmanagersecretversion
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecret2', {
+            value: secretsmanagersecret2
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecretversion2', {
+            value: secretsmanagersecretversion2
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecret3', {
+            value: secretsmanagersecret3
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecretversion3', {
+            value: secretsmanagersecretversion3
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecret4', {
+            value: secretsmanagersecret4
+        });
+
+        new TerraformOutput(this, 'secretsmanagersecretversion4', {
+            value: secretsmanagersecretversion4
+        });
+
+  }
+}
+
+const app = new App();
+new MyStack(app, 'my-stack');
+app.synth();
